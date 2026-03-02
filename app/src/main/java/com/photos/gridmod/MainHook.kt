@@ -20,33 +20,27 @@ class MainHook : IXposedHookLoadPackage {
         logDebug("Google Photos loaded, attempting to apply hooks...")
 
         try {
-            val gridLayoutManagerClass = XposedHelpers.findClass(
-                "androidx.recyclerview.widget.GridLayoutManager",
-                lpparam.classLoader
-            )
-
+            // Hooking the specific obfuscated method 'q' in the legacy support GridLayoutManager
             XposedHelpers.findAndHookMethod(
-                gridLayoutManagerClass,
-                "setSpanCount",
+                "android.support.v7.widget.GridLayoutManager",
+                lpparam.classLoader,
+                "q", // The obfuscated name for setSpanCount
                 Int::class.javaPrimitiveType,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        val originalSpanCount = param.args[0] as Int
+                        val originalSpan = param.args[0] as Int
 
-                        // Default zoomed out view is typically 4. Sometimes 5 on different DPIs.
-                        if (originalSpanCount == 4 || originalSpanCount == 5) {
+                        // Intercept the max zoomed-out state (4) and force to 6
+                        if (originalSpan == 4 || originalSpan == 5) {
                             param.args[0] = 6
-                            logDebug("Intercepted setSpanCount($originalSpanCount). Forcing to 6.")
-                        } else {
-                            // Leave smaller grid states (1, 2, 3) alone to not break pinch-to-zoom
-                            // Optionally log but comment out to avoid spam
-                            // logDebug("Ignoring setSpanCount($originalSpanCount).")
+                            XposedBridge.log("PhotosGridMod: Intercepted method 'q' with span $originalSpan, forced to 6")
+                            android.util.Log.i("PhotosGridMod", "Successfully forced 6-column grid!")
                         }
                     }
                 }
             )
 
-            logDebug("Hooks applied successfully for GridLayoutManager.setSpanCount")
+            logDebug("Hooks applied successfully for GridLayoutManager.q")
         } catch (e: Throwable) {
             logError("Failed to hook GridLayoutManager", e)
         }
