@@ -30,11 +30,12 @@ class MainHook : IXposedHookLoadPackage {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         val originalSpan = param.args[0] as Int
 
-                        // Intercept the max zoomed-out state (4) and force to 6
+                        // NEW: Log every single span count request!
+                        XposedBridge.log("PhotosGridMod SPY: setSpanCount 'q' requested with value -> $originalSpan")
+
+                        // We will temporarily leave our previous logic here just in case
                         if (originalSpan == 4 || originalSpan == 5) {
                             param.args[0] = 6
-                            XposedBridge.log("PhotosGridMod: Intercepted method 'q' with span $originalSpan, forced to 6")
-                            android.util.Log.i("PhotosGridMod", "Successfully forced 6-column grid!")
                         }
                     }
                 }
