@@ -2,7 +2,7 @@ name: Build and Sign Release APK
 
 on:
   push:
-    branches: [ "jules-8442277752076992457-1f612fef" ]
+    branches: [ "main", "master" ]
   workflow_dispatch: # Allows you to trigger the build manually from the GitHub Actions tab
 
 jobs:
