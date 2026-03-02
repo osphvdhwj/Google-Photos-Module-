@@ -7,33 +7,32 @@ import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam
 
 class MainHook : IXposedHookLoadPackage {
+
     override fun handleLoadPackage(lpparam: LoadPackageParam) {
         if (lpparam.packageName != "com.google.android.apps.photos") return
 
         try {
-            // Hook EVERY time a LayoutManager is attached to a RecyclerView
-            val recyclerViewClass = XposedHelpers.findClass(
-                "android.support.v7.widget.RecyclerView",
-                lpparam.classLoader
-            )
-
-            XposedBridge.hookAllMethods(
-                recyclerViewClass,
-                "setLayoutManager",
+            XposedHelpers.findAndHookMethod(
+                "android.support.v7.widget.GridLayoutManager",
+                lpparam.classLoader,
+                "q", // The obfuscated name for setSpanCount
+                Int::class.javaPrimitiveType,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        val layoutManager = param.args[0]
-                        if (layoutManager != null) {
-                            val className = layoutManager.javaClass.name
+                        val originalSpan = param.args[0] as Int
 
-                            // Log it using standard Android Log so Termux catches it easily
-                            android.util.Log.i("PhotosGridSpy", "Found LayoutManager: $className")
+                        // Hijack the larger grid states and force them to 6
+                        if (originalSpan == 3 || originalSpan == 4) {
+                            param.args[0] = 6
+
+                            // Log the successful hijack so we can see it in Termux
+                            android.util.Log.i("PhotosGridMod", "BOOM! Intercepted span $originalSpan, forced to 6 columns!")
                         }
                     }
                 }
             )
         } catch (e: Throwable) {
-            android.util.Log.e("PhotosGridSpy", "Failed to hook RecyclerView: ${e.message}")
+            android.util.Log.e("PhotosGridMod", "Failed to hook GridLayoutManager: ${e.message}")
         }
     }
 }
