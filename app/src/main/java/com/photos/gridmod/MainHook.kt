@@ -1,5 +1,7 @@
 package com.photos.gridmod
 
+import android.content.Context
+import android.content.res.Configuration
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -7,32 +9,36 @@ import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam
 
 class MainHook : IXposedHookLoadPackage {
-
     override fun handleLoadPackage(lpparam: LoadPackageParam) {
         if (lpparam.packageName != "com.google.android.apps.photos") return
 
         try {
             XposedHelpers.findAndHookMethod(
-                "android.support.v7.widget.GridLayoutManager",
+                "android.app.Activity",
                 lpparam.classLoader,
-                "q", // The obfuscated name for setSpanCount
-                Int::class.javaPrimitiveType,
+                "attachBaseContext",
+                Context::class.java,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
-                        val originalSpan = param.args[0] as Int
+                        val context = param.args[0] as Context
+                        val config = Configuration(context.resources.configuration)
 
-                        // Hijack the larger grid states and force them to 6
-                        if (originalSpan == 3 || originalSpan == 4) {
-                            param.args[0] = 6
+                        // 1. Force the DPI to 420+ to trigger the 5/6 column photo grid
+                        config.densityDpi = 420
 
-                            // Log the successful hijack so we can see it in Termux
-                            android.util.Log.i("PhotosGridMod", "BOOM! Intercepted span $originalSpan, forced to 6 columns!")
-                        }
+                        // 2. Proportionally boost the font size so the text DOES NOT shrink!
+                        // (Adjust this number slightly if the text is still too small or too big)
+                        config.fontScale = 1.18f
+
+                        // Apply the fake configuration to the Google Photos context
+                        val newContext = context.createConfigurationContext(config)
+                        param.args[0] = newContext
                     }
                 }
             )
+            XposedBridge.log("PhotosGridMod: DPI Spoofing and Font Scaling hooks applied!")
         } catch (e: Throwable) {
-            android.util.Log.e("PhotosGridMod", "Failed to hook GridLayoutManager: ${e.message}")
+            XposedBridge.log("PhotosGridMod Error: ${e.message}")
         }
     }
 }
